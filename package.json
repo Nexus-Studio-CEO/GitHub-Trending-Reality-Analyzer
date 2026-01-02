@@ -1,0 +1,45 @@
+{
+  "name": "github-trending-reality",
+  "version": "1.0.0",
+  "description": "Reverse-engineer GitHub's trending algorithm and boost your repository visibility with AI-powered insights",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "deploy": "gh-pages -d ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nexus-Studio-CEO/github-trending-reality.git"
+  },
+  "keywords": [
+    "github",
+    "trending",
+    "algorithm",
+    "reverse-engineering",
+    "ai",
+    "analytics",
+    "repository",
+    "visibility",
+    "growth-hacking",
+    "open-source"
+  ],
+  "author": {
+    "name": "Daouda Abdoul Anzize",
+    "email": "nexusstudio100@gmail.com",
+    "url": "https://github.com/Nexus-Studio-CEO"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Nexus-Studio-CEO/github-trending-reality/issues",
+    "email": "nexusstudio100@gmail.com"
+  },
+  "homepage": "https://github.com/Nexus-Studio-CEO/github-trending-reality#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "last 2 versions",
+    "> 1%",
+    "not dead"
+  ]
+}
