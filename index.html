@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Trending Reality Analyzer</title>
+    <meta name="description" content="Reverse-engineer GitHub's trending algorithm and boost your repository visibility with AI-powered insights.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --border: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-primary: #58a6ff;
+            --accent-primary-hover: #1f6feb;
+            --accent-success: #3fb950;
+            --accent-warning: #d29922;
+            --accent-danger: #f85149;
+            --unit: 8px;
+            --header-height: 64px;
+            --sidebar-width: 260px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f6f8fa;
+            --bg-tertiary: #eff2f5;
+            --border: #d0d7de;
+            --text-primary: #24292f;
+            --text-secondary: #57606a;
+            --accent-primary: #0969da;
+            --accent-primary-hover: #0550ae;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.5;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        code, pre {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        #app {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        header {
+            height: var(--header-height);
+            background-color: var(--bg-primary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        nav.sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background-color: var(--bg-tertiary);
+            color: var(--accent-primary);
+        }
+
+        .bottom-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 64px;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            justify-content: space-around;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .page {
+            display: none;
+            padding: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            animation: fadeIn 0.4s ease-out;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: var(--transition);
+            font-family: inherit;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(88, 166, 255, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 12px;
+            color: var(--text-secondary);
+        }
+
+        input[type="text"], input[type="password"], select, textarea {
+            width: 100%;
+            padding: 12px 12px 12px 40px;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            padding: 24px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+
+        .progress-container {
+            margin: 24px 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-success), var(--accent-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .diff-block {
+            background-color: #010409;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            font-size: 0.9rem;
+            border: 1px solid var(--border);
+        }
+
+        .diff-add { 
+            color: #aff5b4; 
+            background: #2ea04326; 
+            display: block; 
+        }
+
+        .diff-sub { 
+            color: #ffdcd7; 
+            background: #f8514926; 
+            display: block; 
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+
+        .notification {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+            max-width: 400px;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @media (max-width: 1023px) {
+            nav.sidebar { width: 80px; }
+            .nav-item span { display: none; }
+            .nav-item { justify-content: center; padding: 12px; }
+        }
+
+        @media (max-width: 767px) {
+            nav.sidebar { display: none; }
+            .bottom-nav { display: flex; }
+            .page { padding: 20px 16px 100px 16px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            header { padding: 0 16px; }
+            .header-actions button:not(.theme-toggle) { display: none; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <div id="app">
+        <nav class="sidebar">
+            <div class="logo-area" style="margin-bottom: 32px;">
+                <i data-lucide="zap" style="color: var(--accent-warning);"></i>
+                <span>G.T.R.A</span>
+            </div>
+            <a href="#" class="nav-item" data-page="dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-page="analysis-config">
+                <i data-lucide="bar-chart-3"></i>
+                <span>Analyse</span>
+            </a>
+            <a href="#" class="nav-item" data-page="repo-selection">
+                <i data-lucide="folder-git-2"></i>
+                <span>Dépôts</span>
+            </a>
+            <div style="flex: 1;"></div>
+            <a href="#" class="nav-item" data-page="settings">
+                <i data-lucide="settings"></i>
+                <span>Paramètres</span>
+            </a>
+        </nav>
+
+        <div class="main-container">
+            <header>
+                <div class="breadcrumb">
+                    <span id="current-page-title" style="font-weight: 600; color: var(--text-secondary);">Tableau de bord</span>
+                </div>
+                <div class="header-actions">
+                    <button class="btn btn-outline theme-toggle" onclick="GTR.toggleTheme()" title="Changer le thème">
+                        <i data-lucide="sun" id="theme-icon"></i>
+                    </button>
+                    <button class="btn btn-primary" onclick="GTR.showPage('repo-selection')">
+                        <i data-lucide="plus"></i>
+                        <span>Nouveau Scan</span>
+                    </button>
+                    <a href="mailto:nexusstudio100@gmail.com?subject=GTR Feedback" class="btn btn-outline" title="Contact & Feedback">
+                        <i data-lucide="mail"></i>
+                    </a>
+                    <div id="user-avatar" style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); cursor: pointer;">
+                        <i data-lucide="user" size="18"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="bottom-nav">
+                <a href="#" onclick="GTR.showPage('dashboard')"><i data-lucide="home"></i></a>
+                <a href="#" onclick="GTR.showPage('analysis-config')"><i data-lucide="search"></i></a>
+                <a href="#" onclick="GTR.showPage('repo-selection')"><i data-lucide="plus-square"></i></a>
+                <a href="#" onclick="GTR.showPage('settings')"><i data-lucide="settings"></i></a>
+            </div>
+
+            <!-- Page Welcome -->
+            <main id="page-welcome" class="page active">
+                <div style="max-width: 500px; margin: 100px auto; text-align: center;">
+                    <div style="width: 80px; height: 80px; background: var(--bg-secondary); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; border: 1px solid var(--border);">
+                        <i data-lucide="github" size="40"></i>
+                    </div>
+                    <h1 style="font-size: 2rem; margin-bottom: 12px;">GitHub Trending Reality</h1>
+                    <p style="color: var(--text-secondary); margin-bottom: 32px;">Reverse-engineer l'algorithme de tendance GitHub et boostez votre visibilité.</p>
+                    
+                    <div class="card" style="text-align: left;">
+                        <div class="input-group">
+                            <label>GitHub Personal Access Token</label>
+                            <div class="input-wrapper">
+                                <i data-lucide="lock" size="18"></i>
+                                <input type="password" placeholder="ghp_xxxxxxxxxxxx" id="github-token">
+                            </div>
+                            <small style="color: var(--text-secondary); font-size: 0.85rem; display: block; margin-top: 8px;">
+                                Scopes requis: <code style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px;">repo</code>, <code style="background: var(--bg-tertiary); padding: 2px 6px; border-radius: 4px;">read:user</code>
+                            </small>
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="GTR.login()">
+                            <i data-lucide="log-in"></i>
+                            Connecter GitHub
+                        </button>
+                    </div>
+                    <a href="https://github.com/settings/tokens/new?description=GTR%20Analyzer&scopes=repo,read:user" target="_blank" style="color: var(--accent-primary); font-size: 0.9rem; text-decoration: none; display: inline-block; margin-top: 16px;">
+                        Créer un nouveau token →
+                    </a>
+                </div>
+            </main>
+
+            <!-- Page Dashboard -->
+            <main id="page-dashboard" class="page">
+                <h2 style="margin-bottom: 24px;">Content de vous revoir, <span id="username-display">@user</span> 👋</h2>
+                
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <i data-lucide="rocket" style="color: var(--accent-success);"></i>
+                        <div class="stat-value" id="stat-active-repos">0</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">Repos analysés</div>
+                    </div>
+                    <div class="card stat-card">
+                        <i data-lucide="star" style="color: var(--accent-warning);"></i>
+                        <div class="stat-value" id="stat-total-stars">0</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">Total Stars</div>
+                    </div>
+                    <div class="card stat-card">
+                        <i data-lucide="trending-up" style="color: var(--accent-primary);"></i>
+                        <div class="stat-value" id="stat-growth">--</div>
+                        <div style="color: var(--text-secondary); font-size: 0.9rem;">Dernier scan</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="font-size: 1.2rem;">Vos Analyses Récentes</h3>
+                    <button class="btn btn-outline" onclick="GTR.loadReposList()">
+                        <i data-lucide="refresh-cw" size="18"></i> Rafraîchir
+                    </button>
+                </div>
+
+                <div id="analyzed-repos-list">
+                    <div class="card" style="text-align: center; padding: 48px; opacity: 0.6;">
+                        <i data-lucide="inbox" size="48" style="margin-bottom: 16px;"></i>
+                        <p>Aucune analyse effectuée pour le moment.</p>
+                        <button class="btn btn-primary" style="margin-top: 16px;" onclick="GTR.showPage('repo-selection')">
+                            Lancer votre première analyse
+                        </button>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Page Repo Selection -->
+            <main id="page-repo-selection" class="page">
+                <h2 style="margin-bottom: 8px;">Sélectionner un dépôt</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 24px;">Choisissez le projet que vous souhaitez propulser.</p>
+
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <i data-lucide="search"></i>
+                        <input type="text" placeholder="Rechercher parmi vos dépôts..." id="repo-search" oninput="GTR.filterRepos()">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-bottom: 16px; align-items: center;">
+                    <select id="filter-language" style="width: auto; padding-left: 12px;" onchange="GTR.filterRepos()">
+                        <option value="">Tous les langages</option>
+                    </select>
+                    <select id="filter-sort" style="width: auto; padding-left: 12px;" onchange="GTR.sortRepos()">
+                        <option value="stars">Trier par Stars</option>
+                        <option value="updated">Dernière mise à jour</option>
+                        <option value="name">Nom</option>
+                    </select>
+                    <button class="btn btn-outline" onclick="GTR.loadReposList(true)" style="margin-left: auto;">
+                        <i data-lucide="refresh-cw" size="18"></i>
+                    </button>
+                </div>
+
+                <div id="repo-list" style="display: grid; gap: 12px;">
+                    <div class="card" style="text-align: center; padding: 48px;">
+                        <div class="spin" style="width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-primary); border-radius: 50%; margin: 0 auto 16px;"></div>
+                        <p>Chargement de vos dépôts...</p>
+                    </div>
+                </div>
+
+                <div style="margin-top: 32px; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button class="btn btn-outline" onclick="GTR.showPage('dashboard')">Annuler</button>
+                    <button class="btn btn-primary" id="btn-continue-analysis" onclick="GTR.showPage('analysis-config')" disabled>
+                        Continuer <i data-lucide="arrow-right"></i>
+                    </button>
+                </div>
+            </main>
+
+            <!-- Page Analysis Config -->
+            <main id="page-analysis-config" class="page">
+                <h2 style="margin-bottom: 24px;">Configuration de l'analyse</h2>
+                
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="cpu" size="20"></i> Fournisseur d'IA
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px;">
+                        <label class="btn btn-outline" style="justify-content: flex-start; gap: 12px;" onclick="GTR.selectAIProvider('openai')">
+                            <input type="radio" name="ai-provider" value="openai"> OpenAI
+                        </label>
+                        <label class="btn btn-outline" style="justify-content: flex-start; gap: 12px;" onclick="GTR.selectAIProvider('groq')">
+                            <input type="radio" name="ai-provider" value="groq" checked> Groq (Rapide)
+                        </label>
+                        <label class="btn btn-outline" style="justify-content: flex-start; gap: 12px;" onclick="GTR.selectAIProvider('anthropic')">
+                            <input type="radio" name="ai-provider" value="anthropic"> Anthropic
+                        </label>
+                    </div>
+
+                    <div class="input-group">
+                        <label>API Key</label>
+                        <div class="input-wrapper">
+                            <i data-lucide="key" size="18"></i>
+                            <input type="password" id="ai-api-key" placeholder="Votre clé API...">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Modèle IA</label>
+                        <select id="ai-model" style="padding-left: 12px;">
+                            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile</option>
+                            <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px;">Paramètres du Scan</h3>
+                    <div class="input-group">
+                        <label>Profondeur de l'analyse (Repos Trending)</label>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button class="btn btn-outline" onclick="GTR.selectDepth(5)">Rapide (5)</button>
+                            <button class="btn btn-primary" onclick="GTR.selectDepth(10)">Standard (10)</button>
+                            <button class="btn btn-outline" onclick="GTR.selectDepth(15)">Profond (15)</button>
+                        </div>
+                        <input type="hidden" id="analysis-depth" value="10">
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 32px;">
+                    <button class="btn btn-outline" onclick="GTR.showPage('repo-selection')">
+                        <i data-lucide="arrow-left"></i> Retour
+                    </button>
+                    <button class="btn btn-primary" onclick="GTR.runAnalysis()">
+                        Lancer l'Analyse Stratégique
+                    </button>
+                </div>
+            </main>
+
+            <!-- Page Analysis Running -->
+            <main id="page-analysis-running" class="page">
+                <div style="text-align: center; max-width: 600px; margin: 40px auto;">
+                    <div style="margin-bottom: 24px;">
+                        <div class="spin" style="width: 64px; height: 64px; border-radius: 50%; border: 4px solid var(--border); border-top-color: var(--accent-primary); margin: 0 auto;"></div>
+                    </div>
+                    <h2>Analyse en cours...</h2>
+                    <p style="color: var(--text-secondary);">Calcul de l'écart de réalité entre votre projet et le Top Trending.</p>
+                    
+                    <div class="progress-container">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 8px;">
+                            <span id="progress-status">Initialisation...</span>
+                            <span id="progress-percent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="card" id="progress-steps" style="text-align: left; background: var(--bg-primary);">
+                        <!-- Steps will be injected here -->
+                    </div>
+
+                    <div style="margin-top: 24px; color: var(--text-secondary); font-size: 0.85rem;" id="time-remaining">
+                        Temps restant estimé : --
+                    </div>
+                </div>
+            </main>
+
+            <!-- Page Results -->
+            <main id="page-results" class="page">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <h2 style="margin-bottom: 4px;">Rapport Stratégique</h2>
+                        <p style="color: var(--text-secondary);">Projet : <strong id="result-repo-name">--</strong></p>
+                    </div>
+                    <div style="display: flex; gap: 12px;">
+                        <button class="btn btn-outline" onclick="GTR.exportReport()">
+                            <i data-lucide="download" size="18"></i> Exporter
+                        </button>
+                        <button class="btn btn-primary" onclick="GTR.showPage('dashboard')">
+                            Retour au Dashboard
+                        </button>
+                    </div>
+                </div>
+
+                <div id="results-container">
+                    <!-- Results will be injected here -->
+                </div>
+            </main>
+
+            <!-- Page Settings -->
+            <main id="page-settings" class="page">
+                <h2 style="margin-bottom: 32px;">Paramètres</h2>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;">
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="github" size="18"></i> Compte GitHub
+                        </h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="color: var(--text-secondary);">Token configuré</span>
+                            <span id="token-status" style="font-weight: 700; color: var(--accent-success);">✓ Actif</span>
+                        </div>
+                        <button class="btn btn-outline" style="width: 100%;" onclick="GTR.logout()">
+                            <i data-lucide="log-out"></i> Déconnecter
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="database" size="18"></i> Stockage Local
+                        </h3>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span style="color: var(--text-secondary);">Espace utilisé</span>
+                            <span id="storage-size" style="font-weight: 700;">-- MB</span>
+                        </div>
+                        <button class="btn btn-outline" style="width: 100%; color: var(--accent-danger);" onclick="GTR.clearCache()">
+                            Vider le cache
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 24px;">
+                    <h3 style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+                        <i data-lucide="mail" size="18"></i> Contact & Contribution
+                    </h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                        Ce projet est open-source. Vous pouvez contribuer, signaler des bugs ou proposer des améliorations.
+                    </p>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <a href="mailto:nexusstudio100@gmail.com?subject=GTR%20Feedback&body=Bonjour%20Nexus%20Studio,%0A%0AJ'ai%20utilisé%20GitHub%20Trending%20Reality%20et..." 
+                           class="btn btn-primary" target="_blank">
+                            <i data-lucide="mail"></i> Envoyer un Feedback
+                        </a>
+                        <a href="https://github.com/Nexus-Studio-CEO/github-trending-reality" 
+                           class="btn btn-outline" target="_blank">
+                            <i data-lucide="github"></i> Voir sur GitHub
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 24px; text-align: center; opacity: 0.7;">
+                    <p style="font-size: 0.9rem; margin-bottom: 8px;">
+                        <strong>GitHub Trending Reality v1.0.0</strong>
+                    </p>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
+                        Créé par <a href="https://github.com/Nexus-Studio-CEO" target="_blank" style="color: var(--accent-primary); text-decoration: none;">Daouda Abdoul Anzize</a> @ Nexus Studio
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 16px;">
+                        <a href="https://github.com/Nexus-Studio-CEO" target="_blank" style="color: var(--text-secondary);">
+                            <i data-lucide="github" size="20"></i>
+                        </a>
+                        <a href="mailto:nexusstudio100@gmail.com" style="color: var(--text-secondary);">
+                            <i data-lucide="mail" size="20"></i>
+                        </a>
+                    </div>
+                </div>
+            </main>
+
+            <footer style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: auto;">
+                Fait avec <i data-lucide="heart" size="14" style="color: var(--accent-danger); fill: var(--accent-danger);"></i> par 
+                <a href="https://github.com/Nexus-Studio-CEO" target="_blank" style="color: var(--accent-primary); text-decoration: none;">Nexus Studio</a>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // GITHUB TRENDING REALITY - CORE APPLICATION
+        // ============================================================================
+        
+        const GTR = {
+            // Configuration
+            config: {
+                githubToken: null,
+                aiProvider: 'groq',
+                aiApiKey: null,
+                aiModel: 'llama-3.3-70b-versatile',
+                analysisDepth: 10,
+                selectedRepo: null,
+                username: null
+            },
+
+            // IndexedDB
+            db: null,
+
+            // ============================================================================
+            // INITIALIZATION
+            // ============================================================================
+            
+            init: async function() {
+                await this.initDB();
+                await this.loadConfig();
+                this.setupEventListeners();
+                this.checkAuth();
+                lucide.createIcons();
+            },
+
+            initDB: async function() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('GTR_DB', 1);
+                    
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => {
+                        this.db = request.result;
+                        resolve();
+                    };
+                    
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        
+                        if (!db.objectStoreNames.contains('config')) {
+                            db.createObjectStore('config', { keyPath: 'key' });
+                        }
+                        if (!db.objectStoreNames.contains('repos')) {
+                            db.createObjectStore('repos', { keyPath: 'full_name' });
+                        }
+                        if (!db.objectStoreNames.contains('analyses')) {
+                            db.createObjectStore('analyses', { keyPath: 'id', autoIncrement: true });
+                        }
+                        if (!db.objectStoreNames.contains('trendingCache')) {
+                            db.createObjectStore('trendingCache', { keyPath: 'date' });
+                        }
+                    };
+                });
+            },
+
+            setupEventListeners: function() {
+                // Navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const page = item.getAttribute('data-page');
+                        if (page) this.showPage(page);
+                    });
+                });
+
+                // Enter key for login
+                const tokenInput = document.getElementById('github-token');
+                if (tokenInput) {
+                    tokenInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') this.login();
+                    });
+                }
+            },
+
+            // ============================================================================
+            // AUTHENTICATION & CONFIG
+            // ============================================================================
+            
+            login: async function() {
+                const token = document.getElementById('github-token').value.trim();
+                
+                if (!token || !token.startsWith('ghp_')) {
+                    this.notify('Token invalide. Il doit commencer par "ghp_"', 'error');
+                    return;
+                }
+
+                const btn = document.querySelector('#page-welcome .btn-primary');
+                btn.innerHTML = '<i data-lucide="loader" class="spin"></i> Connexion...';
+                lucide.createIcons();
+
+                try {
+                    // Test token validity
+                    const response = await fetch('https://api.github.com/user', {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Token invalide ou expiré');
+                    }
+
+                    const userData = await response.json();
+                    
+                    this.config.githubToken = token;
+                    this.config.username = userData.login;
+                    
+                    await this.saveConfig();
+                    
+                    this.notify(`Bienvenue ${userData.login} ! 🎉`, 'success');
+                    
+                    setTimeout(() => {
+                        this.showPage('dashboard');
+                        this.loadReposList();
+                    }, 500);
+
+                } catch (error) {
+                    this.notify('Erreur de connexion: ' + error.message, 'error');
+                    btn.innerHTML = '<i data-lucide="log-in"></i> Connecter GitHub';
+                    lucide.createIcons();
+                }
+            },
+
+            logout: async function() {
+                if (!confirm('Êtes-vous sûr de vouloir vous déconnecter ?')) return;
+                
+                this.config.githubToken = null;
+                this.config.username = null;
+                await this.saveConfig();
+                
+                this.showPage('welcome');
+                this.notify('Déconnecté avec succès', 'success');
+            },
+
+            checkAuth: function() {
+                if (this.config.githubToken) {
+                    this.showPage('dashboard');
+                    document.getElementById('username-display').textContent = `@${this.config.username}`;
+                    this.loadReposList();
+                } else {
+                    this.showPage('welcome');
+                }
+            },
+
+            saveConfig: async function() {
+                const tx = this.db.transaction('config', 'readwrite');
+                const store = tx.objectStore('config');
+                
+                for (const [key, value] of Object.entries(this.config)) {
+                    await store.put({ key, value });
+                }
+            },
+
+            loadConfig: async function() {
+                const tx = this.db.transaction('config', 'readonly');
+                const store = tx.objectStore('config');
+                
+                const keys = ['githubToken', 'aiProvider', 'aiApiKey', 'aiModel', 'username'];
+                
+                for (const key of keys) {
+                    const result = await store.get(key);
+                    if (result) {
+                        this.config[key] = result.value;
+                    }
+                }
+            },
+
+            // ============================================================================
+            // NAVIGATION
+            // ============================================================================
+            
+            showPage: function(pageId) {
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                
+                const target = document.getElementById('page-' + pageId);
+                if (target) target.classList.add('active');
+                
+                const navItem = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+                if (navItem) navItem.classList.add('active');
+                
+                const titles = {
+                    'welcome': 'Connexion',
+                    'dashboard': 'Tableau de bord',
+                    'repo-selection': 'Sélection des dépôts',
+                    'analysis-config': 'Configuration',
+                    'analysis-running': 'Analyse en cours',
+                    'results': 'Rapport Stratégique',
+                    'settings': 'Paramètres'
+                };
+                
+                document.getElementById('current-page-title').textContent = titles[pageId] || 'Application';
+                window.scrollTo(0, 0);
+                lucide.createIcons();
+            },
+
+            toggleTheme: function() {
+                const body = document.body;
+                const icon = document.getElementById('theme-icon');
+                
+                if (body.getAttribute('data-theme') === 'dark') {
+                    body.setAttribute('data-theme', 'light');
+                    icon.setAttribute('data-lucide', 'moon');
+                } else {
+                    body.setAttribute('data-theme', 'dark');
+                    icon.setAttribute('data-lucide', 'sun');
+                }
+                
+                lucide.createIcons();
+            },
+
+            // ============================================================================
+            // GITHUB API
+            // ============================================================================
+            
+            loadReposList: async function(force = false) {
+                if (!this.config.githubToken) {
+                    this.notify('Veuillez vous connecter d\'abord', 'error');
+                    return;
+                }
+
+                const listContainer = document.getElementById('repo-list');
+                listContainer.innerHTML = '<div class="card" style="text-align: center; padding: 48px;"><div class="spin" style="width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-primary); border-radius: 50%; margin: 0 auto 16px;"></div><p>Chargement de vos dépôts...</p></div>';
+
+                try {
+                    const response = await fetch('https://api.github.com/user/repos?per_page=100&sort=updated', {
+                        headers: {
+                            'Authorization': `token ${this.config.githubToken}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+
+                    if (!response.ok) throw new Error('Erreur de chargement des repos');
+
+                    const repos = await response.json();
+                    
+                    // Save to IndexedDB
+                    const tx = this.db.transaction('repos', 'readwrite');
+                    const store = tx.objectStore('repos');
+                    
+                    for (const repo of repos) {
+                        await store.put(repo);
+                    }
+
+                    this.renderReposList(repos);
+                    this.updateDashboardStats(repos);
+
+                } catch (error) {
+                    this.notify('Erreur: ' + error.message, 'error');
+                    listContainer.innerHTML = '<div class="card" style="text-align: center; padding: 48px; color: var(--accent-danger);"><i data-lucide="alert-circle" size="48"></i><p>Impossible de charger les dépôts</p></div>';
+                    lucide.createIcons();
+                }
+            },
+
+            renderReposList: function(repos) {
+                const listContainer = document.getElementById('repo-list');
+                
+                if (repos.length === 0) {
+                    listContainer.innerHTML = '<div class="card" style="text-align: center; padding: 48px;"><p>Aucun dépôt trouvé</p></div>';
+                    return;
+                }
+
+                listContainer.innerHTML = repos.map(repo => `
+                    <div class="card repo-item" data-repo="${repo.full_name}" data-language="${repo.language || ''}" style="padding: 16px; display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="selected-repo" value="${repo.full_name}" style="margin-right: 16px; width: 20px; height: 20px;" onchange="GTR.selectRepo('${repo.full_name}')">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 700;">${repo.name}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                ${repo.language || 'Unknown'} • 
+                                <i data-lucide="star" size="12"></i> ${repo.stargazers_count}
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            ${this.formatDate(repo.updated_at)}
+                        </div>
+                    </div>
+                `).join('');
+
+                // Populate language filter
+                const languages = [...new Set(repos.map(r => r.language).filter(Boolean))];
+                const langFilter = document.getElementById('filter-language');
+                langFilter.innerHTML = '<option value="">Tous les langages</option>' + 
+                    languages.map(lang => `<option value="${lang}">${lang}</option>`).join('');
+
+                lucide.createIcons();
+            },
+
+            selectRepo: function(fullName) {
+                this.config.selectedRepo = fullName;
+                document.getElementById('btn-continue-analysis').disabled = false;
+                lucide.createIcons();
+            },
+
+            filterRepos: function() {
+                const search = document.getElementById('repo-search').value.toLowerCase();
+                const language = document.getElementById('filter-language').value;
+                
+                document.querySelectorAll('.repo-item').forEach(item => {
+                    const repoName = item.getAttribute('data-repo').toLowerCase();
+                    const repoLang = item.getAttribute('data-language');
+                    
+                    const matchSearch = repoName.includes(search);
+                    const matchLang = !language || repoLang === language;
+                    
+                    item.style.display = (matchSearch && matchLang) ? 'flex' : 'none';
+                });
+            },
+
+            updateDashboardStats: function(repos) {
+                const totalStars = repos.reduce((sum, repo) => sum + repo.stargazers_count, 0);
+                document.getElementById('stat-total-stars').textContent = totalStars.toLocaleString();
+            },
+
+            // ============================================================================
+            // ANALYSIS ENGINE
+            // ============================================================================
+            
+            selectAIProvider: function(provider) {
+                this.config.aiProvider = provider;
+                
+                // Update model dropdown based on provider
+                const modelSelect = document.getElementById('ai-model');
+                const models = {
+                    'openai': ['gpt-4-turbo', 'gpt-3.5-turbo'],
+                    'groq': ['llama-3.3-70b-versatile', 'mixtral-8x7b-32768'],
+                    'anthropic': ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229']
+                };
+                
+                modelSelect.innerHTML = models[provider].map(m => 
+                    `<option value="${m}">${m}</option>`
+                ).join('');
+            },
+
+            selectDepth: function(depth) {
+                this.config.analysisDepth = depth;
+                document.getElementById('analysis-depth').value = depth;
+                
+                // Update button styles
+                document.querySelectorAll('#page-analysis-config .card:nth-child(2) .btn').forEach((btn, i) => {
+                    const depths = [5, 10, 15];
+                    if (depths[i] === depth) {
+                        btn.classList.remove('btn-outline');
+                        btn.classList.add('btn-primary');
+                    } else {
+                        btn.classList.remove('btn-primary');
+                        btn.classList.add('btn-outline');
+                    }
+                });
+            },
+
+            runAnalysis: async function() {
+                // Validation
+                const apiKey = document.getElementById('ai-api-key').value.trim();
+                if (!apiKey) {
+                    this.notify('Veuillez entrer votre clé API', 'error');
+                    return;
+                }
+
+                if (!this.config.selectedRepo) {
+                    this.notify('Veuillez sélectionner un dépôt', 'error');
+                    return;
+                }
+
+                this.config.aiApiKey = apiKey;
+                this.config.aiModel = document.getElementById('ai-model').value;
+                await this.saveConfig();
+
+                this.showPage('analysis-running');
+                
+                // Start analysis workers
+                await this.performAnalysis();
+            },
+
+            performAnalysis: async function() {
+                const steps = [
+                    { name: 'Récupération des repos trending', progress: 10 },
+                    { name: 'Téléchargement de la documentation', progress: 25 },
+                    { name: 'Analyse des structures README', progress: 45 },
+                    { name: 'Vérification des signaux sociaux', progress: 65 },
+                    { name: 'Génération des recommandations IA', progress: 85 },
+                    { name: 'Finalisation du rapport', progress: 100 }
+                ];
+
+                const stepsContainer = document.getElementById('progress-steps');
+                const progressFill = document.getElementById('progress-fill');
+                const progressPercent = document.getElementById('progress-percent');
+                const progressStatus = document.getElementById('progress-status');
+
+                for (let i = 0; i < steps.length; i++) {
+                    const step = steps[i];
+                    
+                    // Update UI
+                    progressStatus.textContent = step.name;
+                    progressPercent.textContent = step.progress + '%';
+                    progressFill.style.width = step.progress + '%';
+
+                    // Render steps
+                    stepsContainer.innerHTML = steps.map((s, idx) => {
+                        let icon = 'circle';
+                        let color = 'var(--text-secondary)';
+                        let opacity = '0.5';
+                        
+                        if (idx < i) {
+                            icon = 'check-circle';
+                            color = 'var(--accent-success)';
+                            opacity = '1';
+                        } else if (idx === i) {
+                            icon = 'loader';
+                            color = 'var(--accent-primary)';
+                            opacity = '1';
+                        }
+                        
+                        return `
+                            <div style="display: flex; gap: 12px; margin-bottom: 12px; align-items: center; color: ${color}; opacity: ${opacity};">
+                                <i data-lucide="${icon}" size="18" ${idx === i ? 'class="spin"' : ''}></i>
+                                <span>${s.name}</span>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    lucide.createIcons();
+
+                    // Simulate work (replace with real analysis)
+                    await this.sleep(Math.random() * 2000 + 1000);
+                }
+
+                // Generate mock results (replace with real analysis)
+                await this.generateResults();
+                
+                setTimeout(() => this.showPage('results'), 500);
+            },
+
+            generateResults: async function() {
+                // Mock data - Replace with real analysis
+                const results = {
+                    repoName: this.config.selectedRepo,
+                    trendingProbability: 42,
+                    realityGap: [
+                        { metric: 'Vitesse d\'acquisition (Stars)', you: '2/jour', trending: '15/jour', gap: '-86%', status: 'danger' },
+                        { metric: 'Densité Visuelle (Images/GIFs)', you: '0', trending: '3 imgs', gap: '-100%', status: 'danger' },
+                        { metric: 'Mots-clés stratégiques', you: '5', trending: '5', gap: '0%', status: 'success' }
+                    ],
+                    actions: [
+                        {
+                            title: 'Ajouter une démo GIF au README',
+                            impact: '+40%',
+                            effort: '1h',
+                            description: 'Les repos viraux dans la catégorie \'AI\' utilisent tous une démo visuelle claire dès le premier scroll.'
+                        }
+                    ],
+                    diff: `  # My Awesome Project
++
++ ## 🎥 Demo
++ ![Demo](assets/demo.gif)
++
+  ## Installation`
+                };
+
+                this.renderResults(results);
+            },
+
+            renderResults: function(results) {
+                document.getElementById('result-repo-name').textContent = results.repoName;
+                
+                const container = document.getElementById('results-container');
+                container.innerHTML = `
+                    <div class="card" style="text-align: center; border-color: var(--accent-warning);">
+                        <div style="font-size: 1.1rem; margin-bottom: 12px;">
+                            Probabilité de Tendance Actuelle : 
+                            <span style="font-weight: 800; color: var(--accent-warning);">${results.trendingProbability}%</span>
+                        </div>
+                        <div class="progress-bar" style="height: 12px; max-width: 500px; margin: 0 auto;">
+                            <div class="progress-fill" style="width: ${results.trendingProbability}%; background: var(--accent-warning);"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 20px;"><i data-lucide="unplug" size="20"></i> Reality Gap</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="text-align: left; color: var(--text-secondary); border-bottom: 1px solid var(--border);">
+                                    <th style="padding: 12px;">Métrique</th>
+                                    <th style="padding: 12px;">Vous</th>
+                                    <th style="padding: 12px;">Trending Avg.</th>
+                                    <th style="padding: 12px;">Écart</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${results.realityGap.map(row => `
+                                    <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 16px;">${row.metric}</td>
+                                        <td style="padding: 16px;">${row.you}</td>
+                                        <td style="padding: 16px;">${row.trending}</td>
+                                        <td style="padding: 16px; color: var(--accent-${row.status}); font-weight: 700;">
+                                            ${row.gap} ${row.status === 'success' ? '✅' : '❌'}
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <h3 style="margin-bottom: 16px;"><i data-lucide="file-diff" size="20"></i> Modifications suggérées</h3>
+                        <div class="diff-block">
+                            <pre>${results.diff.split('\n').map(line => {
+                                if (line.startsWith('+')) return `<span class="diff-add">${line}</span>`;
+                                if (line.startsWith('-')) return `<span class="diff-sub">${line}</span>`;
+                                return line;
+                            }).join('\n')}</pre>
+                        </div>
+                        <div style="margin-top: 16px; display: flex; gap: 12px;">
+                            <button class="btn btn-outline" onclick="GTR.copyToClipboard(\`${results.diff}\`)">
+                                <i data-lucide="copy" size="18"></i> Copier
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                lucide.createIcons();
+            },
+
+            // ============================================================================
+            // UTILITIES
+            // ============================================================================
+            
+            notify: function(message, type = 'info') {
+                const colors = {
+                    success: 'var(--accent-success)',
+                    error: 'var(--accent-danger)',
+                    warning: 'var(--accent-warning)',
+                    info: 'var(--accent-primary)'
+                };
+
+                const notif = document.createElement('div');
+                notif.className = 'notification';
+                notif.style.borderLeftColor = colors[type];
+                notif.style.borderLeftWidth = '4px';
+                notif.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <i data-lucide="${type === 'error' ? 'alert-circle' : type === 'success' ? 'check-circle' : 'info'}" size="20"></i>
+                        <span>${message}</span>
+                    </div>
+                `;
+
+                document.body.appendChild(notif);
+                lucide.createIcons();
+
+                setTimeout(() => notif.remove(), 4000);
+            },
+
+            formatDate: function(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+                if (diffDays === 0) return 'Aujourd\'hui';
+                if (diffDays === 1) return 'Hier';
+                if (diffDays < 7) return `il y a ${diffDays}j`;
+                if (diffDays < 30) return `il y a ${Math.floor(diffDays / 7)}sem`;
+                return date.toLocaleDateString('fr-FR');
+            },
+
+            sleep: function(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            },
+
+            copyToClipboard: function(text) {
+                navigator.clipboard.writeText(text).then(() => {
+                    this.notify('Copié dans le presse-papier !', 'success');
+                });
+            },
+
+            clearCache: async function() {
+                if (!confirm('Êtes-vous sûr de vouloir vider tout le cache ?')) return;
+
+                const tx = this.db.transaction(['repos', 'analyses', 'trendingCache'], 'readwrite');
+                await tx.objectStore('repos').clear();
+                await tx.objectStore('analyses').clear();
+                await tx.objectStore('trendingCache').clear();
+
+                this.notify('Cache vidé avec succès', 'success');
+            },
+
+            exportReport: function() {
+                this.notify('Export disponible dans la prochaine version !', 'info');
+            }
+        };
+
+        // Initialize app on load
+        window.addEventListener('DOMContentLoaded', () => {
+            GTR.init();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') GTR.showPage('dashboard');
+        });
+    </script>
+</body>
+</html>
